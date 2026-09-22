@@ -48,15 +48,6 @@ More workflows under [`examples/`](./examples/).
 | `install-method` | `release` | above |
 | `version` | `v0.0.1` | CLI tag from helm-sca; `latest` floats |
 
-## Release
-
-```bash
-git tag v0.0.3
-git push origin v0.0.3
-```
-
-Action tags (Marketplace) and CLI tags (`helm-sca`) are independent. Docs-only edits on `main` do not need a new tag.
-
 ## License
 
 MIT
