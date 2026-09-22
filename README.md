@@ -1,15 +1,15 @@
 # helm-sca-action
 
-GitHub Action wrapping [`saintmalik/helm-sca`](https://github.com/saintmalik/helm-sca): supply chain checks on container images your GitOps/ops repo would deploy — not app-CI image scans.
+GitHub Action wrapping [`saintmalik/helm-sca`](https://github.com/saintmalik/helm-sca): supply chain checks on container images your GitOps/ops repo would deploy, not app-CI image scans.
 
 Blog: [supply chain risk in Helm charts](https://blog.saintmalik.me/helm-gitops-supply-chain-checks/)
 
 ## Usage
 
-Pin the **Action** tag (`@v0.0.3`). The CLI `version` input is separate — it must match a real [`helm-sca` release](https://github.com/saintmalik/helm-sca/releases) (default `v0.0.1`).
+Pin by commit SHA for reproducibility (or `@v0.0.3` for the floating tag). The CLI `version` input is separate — it must match a real [`helm-sca` release](https://github.com/saintmalik/helm-sca/releases) (default `v0.0.1`).
 
 ```yaml
-- uses: saintmalik/helm-sca-action@v0.0.3
+- uses: saintmalik/helm-sca-action@6debf2d90e156822a8944b548eb8fd42acf1d5ae # v0.0.3
   with:
     mode: argo
     argo-apps: ./environments
@@ -20,7 +20,7 @@ Pin the **Action** tag (`@v0.0.3`). The CLI `version` input is separate — it m
 Flux / gitops:
 
 ```yaml
-- uses: saintmalik/helm-sca-action@v0.0.3
+- uses: saintmalik/helm-sca-action@6debf2d90e156822a8944b548eb8fd42acf1d5ae # v0.0.3
   with:
     mode: flux          # or: gitops, chart, manifests, terraform
     flux: ./clusters/prod
