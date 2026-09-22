@@ -6,10 +6,10 @@ Blog: [supply chain risk in Helm charts](https://blog.saintmalik.me/helm-gitops-
 
 ## Usage
 
-Pin the Action tag (and CLI via `version`, default `v0.0.1`):
+Pin the **Action** tag (`@v0.0.3`). The CLI `version` input is separate — it must match a real [`helm-sca` release](https://github.com/saintmalik/helm-sca/releases) (default `v0.0.1`).
 
 ```yaml
-- uses: saintmalik/helm-sca-action@v0.0.1
+- uses: saintmalik/helm-sca-action@v0.0.3
   with:
     mode: argo
     argo-apps: ./environments
@@ -20,7 +20,7 @@ Pin the Action tag (and CLI via `version`, default `v0.0.1`):
 Flux / gitops:
 
 ```yaml
-- uses: saintmalik/helm-sca-action@v0.0.1
+- uses: saintmalik/helm-sca-action@v0.0.3
   with:
     mode: flux          # or: gitops, chart, manifests, terraform
     flux: ./clusters/prod
@@ -46,16 +46,16 @@ More workflows under [`examples/`](./examples/).
 | `fail-on` | `none` | `none`\|`low`\|`medium`\|`high`\|`critical` |
 | `out-dir` | `helm-sca-out` | scan reports |
 | `install-method` | `release` | above |
-| `version` | `v0.0.1` | CLI tag; `latest` floats |
+| `version` | `v0.0.1` | CLI tag from helm-sca; `latest` floats |
 
 ## Release
 
 ```bash
-git tag v0.0.1
-git push origin v0.0.1
+git tag v0.0.3
+git push origin v0.0.3
 ```
 
-Ship CLI `v0.0.1` the same day so default `release` install works.
+Action tags (Marketplace) and CLI tags (`helm-sca`) are independent. Docs-only edits on `main` do not need a new tag.
 
 ## License
 
