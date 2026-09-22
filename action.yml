@@ -1,5 +1,5 @@
 name: "helm-sca"
-description: "Syft/Grype supply chain checks on images your GitOps/ops repo would deploy."
+description: "Supply chain security on container images your GitOps or Helm ops repo would deploy."
 author: "saintmalik"
 
 branding:

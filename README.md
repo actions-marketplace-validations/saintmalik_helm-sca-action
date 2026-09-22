@@ -1,6 +1,6 @@
 # helm-sca-action
 
-GitHub Action for supply chain security via [`saintmalik/helm-sca`](https://github.com/saintmalik/helm-sca): Syft → Grype on images the GitOps/ops repo would deploy, not app-CI image scans. Installs the CLI and deps, then `scan` (or `inventory` if you only need the list).
+GitHub Action wrapping [`saintmalik/helm-sca`](https://github.com/saintmalik/helm-sca): supply chain checks on container images your GitOps/ops repo would deploy — not app-CI image scans.
 
 Blog: [supply chain risk in Helm charts](https://blog.saintmalik.me/helm-gitops-supply-chain-checks/)
 
