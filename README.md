@@ -6,8 +6,6 @@ Blog: [supply chain risk in Helm charts](https://blog.saintmalik.me/helm-gitops-
 
 ## Usage
 
-Pin by commit SHA for reproducibility (or `@v0.0.3` for the floating tag). The CLI `version` input is separate — it must match a real [`helm-sca` release](https://github.com/saintmalik/helm-sca/releases) (default `v0.0.1`).
-
 ```yaml
 - uses: saintmalik/helm-sca-action@6debf2d90e156822a8944b548eb8fd42acf1d5ae # v0.0.3
   with:
