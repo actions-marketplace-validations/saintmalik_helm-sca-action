@@ -1,0 +1,23 @@
+# Example: pin helm-sca CLI from a GitHub Release (first version: v0.0.1).
+
+name: helm-sca release pin
+
+on:
+  pull_request:
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan Argo apps
+        uses: saintmalik/helm-sca-action@v0.0.1
+        with:
+          # Default install-method is release; pin the CLI asset explicitly:
+          install-method: release
+          version: v0.0.1
+          mode: argo
+          argo-apps: ./environments
+          command: scan
+          fail-on: high

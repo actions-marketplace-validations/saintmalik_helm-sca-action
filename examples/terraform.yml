@@ -1,0 +1,25 @@
+# Example: Terraform/OpenTofu helm_release inventory (best-effort).
+
+name: helm-sca (terraform)
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "**/*.tf"
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan Terraform Helm pins
+        uses: saintmalik/helm-sca-action@<commit-sha>
+        with:
+          mode: terraform
+          terraform: ./infra
+          # Optional: after terraform plan -out=tfplan && terraform show -json tfplan > plan.json
+          # terraform-json: ./plan.json
+          command: scan
+          fail-on: high

@@ -1,0 +1,21 @@
+name: Lint action
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download actionlint
+        run: |
+          set -euo pipefail
+          VERSION=1.7.7
+          curl -sSfL \
+            "https://raw.githubusercontent.com/rhysd/actionlint/v${VERSION}/scripts/download-bin.sh" \
+            | bash -s -- -b /tmp
+      - name: Lint
+        run: /tmp/actionlint -color

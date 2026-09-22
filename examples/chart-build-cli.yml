@@ -1,0 +1,34 @@
+# Example: local chart with values (build CLI from a sibling checkout).
+
+name: helm-sca chart
+
+on:
+  pull_request:
+    paths:
+      - "charts/**"
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Optional: when the published module/release is not available yet,
+      # check out helm-sca and point helm-sca-path at it.
+      # Prefer install-method: release + version: v0.0.1 once CLI releases exist.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: saintmalik/helm-sca
+          path: .helm-sca-src
+          ref: main
+
+      - name: Scan chart
+        uses: saintmalik/helm-sca-action@v0.0.1
+        with:
+          install-method: build
+          helm-sca-path: .helm-sca-src
+          mode: chart
+          chart: ./charts/demo
+          values: ./charts/demo/values.yaml
+          command: scan
+          fail-on: high

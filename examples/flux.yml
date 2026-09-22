@@ -1,0 +1,23 @@
+# Example: Flux HelmRelease / Kustomization tree.
+
+name: helm-sca (flux)
+
+on:
+  pull_request:
+    paths:
+      - "clusters/**"
+      - "flux/**"
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan Flux resources
+        uses: saintmalik/helm-sca-action@<commit-sha>
+        with:
+          mode: flux
+          flux: ./clusters/prod
+          fail-on: high
+          command: scan

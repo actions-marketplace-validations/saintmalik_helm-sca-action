@@ -1,0 +1,22 @@
+# Example: auto-detect Argo Applications + Flux resources under one tree.
+
+name: helm-sca (gitops)
+
+on:
+  pull_request:
+    paths:
+      - "deploy/**"
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan GitOps tree
+        uses: saintmalik/helm-sca-action@<commit-sha>
+        with:
+          mode: gitops
+          gitops: ./deploy
+          fail-on: high
+          command: scan

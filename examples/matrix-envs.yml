@@ -1,0 +1,29 @@
+# Example: matrix over staging / production app trees.
+
+name: helm-sca (matrix envs)
+
+on:
+  pull_request:
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: staging
+            argo-apps: ./staging/apps
+          - name: production
+            argo-apps: ./production/apps
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan ${{ matrix.name }}
+        uses: saintmalik/helm-sca-action@<commit-sha>
+        with:
+          mode: argo
+          argo-apps: ${{ matrix.argo-apps }}
+          out-dir: helm-sca-out-${{ matrix.name }}
+          fail-on: high
+          command: scan

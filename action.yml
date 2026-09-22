@@ -1,0 +1,407 @@
+name: "helm-sca"
+description: >-
+  Install helm-sca and run supply chain checks (Syft → Grype) on what GitOps
+  would deploy: Helm charts, manifests, Argo CD, Flux, or Terraform.
+author: "saintmalik"
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  command:
+    description: CLI command to run — inventory or scan.
+    required: false
+    default: scan
+
+  mode:
+    description: >-
+      Input mode: argo | flux | gitops | manifests | chart | terraform.
+      Maps to --argo-apps / --flux / --gitops / --manifests / --chart / --terraform.
+    required: false
+    default: argo
+
+  chart:
+    description: Helm chart path (mode=chart).
+    required: false
+    default: ""
+
+  manifests:
+    description: Directory of rendered Kubernetes YAML (mode=manifests).
+    required: false
+    default: ""
+
+  argo-apps:
+    description: Argo Application YAML file or directory (mode=argo).
+    required: false
+    default: ./environments
+
+  flux:
+    description: Flux HelmRelease / Kustomization YAML file or directory (mode=flux).
+    required: false
+    default: ""
+
+  gitops:
+    description: Directory to auto-detect Argo + Flux resources (mode=gitops).
+    required: false
+    default: ""
+
+  terraform:
+    description: Terraform/OpenTofu .tf directory or file (mode=terraform).
+    required: false
+    default: ""
+
+  terraform-json:
+    description: >-
+      Optional terraform show -json / plan JSON path (mode=terraform).
+      Can be used with or instead of terraform input.
+    required: false
+    default: ""
+
+  values:
+    description: Comma-separated Helm values files (chart mode).
+    required: false
+    default: ""
+
+  set:
+    description: Comma-separated Helm --set key=value pairs (chart mode).
+    required: false
+    default: ""
+
+  release:
+    description: helm template release name.
+    required: false
+    default: helm-sca
+
+  repo-root:
+    description: Repository root for resolving local GitOps / Terraform chart paths.
+    required: false
+    default: ""
+
+  format:
+    description: inventory output format (list|json|yaml|cyclonedx-json). Used when command=inventory.
+    required: false
+    default: json
+
+  out-dir:
+    description: Output directory for scan reports.
+    required: false
+    default: helm-sca-out
+
+  fail-on:
+    description: Fail scan when findings at or above this severity (none|low|medium|high|critical).
+    required: false
+    default: none
+
+  only-fixed:
+    description: Pass --only-fixed to Grype.
+    required: false
+    default: "true"
+
+  working-directory:
+    description: Working directory (defaults to github.workspace).
+    required: false
+    default: ""
+
+  version:
+    description: >-
+      helm-sca version tag for release download or go-install (e.g. v0.0.1),
+      or "latest". Ignored when install-method is build.
+    required: false
+    default: v0.0.1
+
+  install-method:
+    description: >-
+      How to obtain the CLI: release (GitHub release binary — preferred),
+      go-install (go install @version), or build (checkout sibling/source
+      via helm-sca-ref). Use go-install/build until v0.0.1 is published.
+    required: false
+    default: release
+  helm-sca-ref:
+    description: >-
+      When install-method=build, git ref of saintmalik/helm-sca to checkout and build.
+      Or a local path if helm-sca-path is set.
+    required: false
+    default: main
+
+  helm-sca-path:
+    description: >-
+      Optional local path to an already-checked-out helm-sca repo (install-method=build).
+    required: false
+    default: ""
+
+  helm-version:
+    description: Helm version for azure/setup-helm.
+    required: false
+    default: v3.22.0
+
+  syft_version:
+    description: Syft version tag to install.
+    required: false
+    default: v1.52.0
+
+  grype_version:
+    description: Grype version tag to install.
+    required: false
+    default: v0.119.0
+
+  upload-artifacts:
+    description: Upload out-dir as a workflow artifact.
+    required: false
+    default: "true"
+
+  artifact-name:
+    description: Artifact name when upload-artifacts is true.
+    required: false
+    default: helm-sca-report
+
+outputs:
+  out_dir:
+    description: Path to scan / inventory output directory.
+    value: ${{ steps.run.outputs.out_dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve working directory
+      id: paths
+      shell: bash
+      env:
+        INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        INPUT_OUT_DIR: ${{ inputs.out-dir }}
+      run: |
+        set -euo pipefail
+        WORK_DIR="${INPUT_WORKING_DIRECTORY:-$GITHUB_WORKSPACE}"
+        if [[ "$WORK_DIR" != /* ]]; then
+          WORK_DIR="$GITHUB_WORKSPACE/$WORK_DIR"
+        fi
+        OUT_DIR="${INPUT_OUT_DIR:-helm-sca-out}"
+        if [[ "$OUT_DIR" != /* ]]; then
+          OUT_DIR="$WORK_DIR/$OUT_DIR"
+        fi
+        {
+          echo "work_dir=$WORK_DIR"
+          echo "out_dir=$OUT_DIR"
+        } >>"$GITHUB_OUTPUT"
+
+    - name: Setup Go
+      if: inputs.install-method == 'go-install' || inputs.install-method == 'build'
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      with:
+        go-version: "1.22.x"
+
+    - name: Setup Helm
+      uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      with:
+        version: ${{ inputs.helm-version }}
+
+    - name: Install Syft
+      if: inputs.command == 'scan'
+      shell: bash
+      env:
+        SYFT_VERSION: ${{ inputs.syft_version }}
+      run: |
+        set -euo pipefail
+        curl -sSfL --connect-timeout 10 --max-time 120 \
+          "https://raw.githubusercontent.com/anchore/syft/${SYFT_VERSION}/install.sh" \
+          | sh -s -- -b /usr/local/bin "${SYFT_VERSION}"
+
+    - name: Install Grype
+      if: inputs.command == 'scan'
+      shell: bash
+      env:
+        GRYPE_VERSION: ${{ inputs.grype_version }}
+      run: |
+        set -euo pipefail
+        curl -sSfL --connect-timeout 10 --max-time 120 \
+          "https://raw.githubusercontent.com/anchore/grype/${GRYPE_VERSION}/install.sh" \
+          | sh -s -- -b /usr/local/bin "${GRYPE_VERSION}"
+
+    - name: Update Grype vulnerability database
+      if: inputs.command == 'scan'
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! grype db update; then
+          echo "::warning::Grype vulnerability DB update failed — scanning may use a stale or empty DB"
+        fi
+
+    - name: Install helm-sca (go install)
+      if: inputs.install-method == 'go-install'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        REF="${VERSION}"
+        if [[ "$REF" == "latest" ]]; then
+          REF="latest"
+        fi
+        go install "github.com/saintmalik/helm-sca/cmd/helm-sca@${REF}"
+        echo "$(go env GOPATH)/bin" >>"$GITHUB_PATH"
+
+    - name: Install helm-sca (build from source)
+      if: inputs.install-method == 'build'
+      shell: bash
+      env:
+        HELM_SCA_REF: ${{ inputs.helm-sca-ref }}
+        HELM_SCA_PATH: ${{ inputs.helm-sca-path }}
+      run: |
+        set -euo pipefail
+        DEST="${RUNNER_TEMP}/helm-sca-src"
+        if [[ -n "${HELM_SCA_PATH}" ]]; then
+          SRC="${HELM_SCA_PATH}"
+          if [[ "$SRC" != /* ]]; then
+            SRC="${GITHUB_WORKSPACE}/${SRC}"
+          fi
+        else
+          rm -rf "$DEST"
+          git clone --depth 1 --branch "${HELM_SCA_REF}" \
+            https://github.com/saintmalik/helm-sca.git "$DEST" \
+            || git clone --depth 1 https://github.com/saintmalik/helm-sca.git "$DEST"
+          if [[ "${HELM_SCA_REF}" != "main" && "${HELM_SCA_REF}" != "master" ]]; then
+            git -C "$DEST" fetch --depth 1 origin "${HELM_SCA_REF}" && git -C "$DEST" checkout "${HELM_SCA_REF}" || true
+          fi
+          SRC="$DEST"
+        fi
+        (cd "$SRC" && go build -o "${RUNNER_TEMP}/helm-sca" ./cmd/helm-sca)
+        sudo cp "${RUNNER_TEMP}/helm-sca" /usr/local/bin/helm-sca
+        helm-sca version
+
+    - name: Install helm-sca (GitHub release)
+      if: inputs.install-method == 'release'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        VER="${VERSION}"
+        if [[ "$VER" == "latest" ]]; then
+          VER="$(curl -sSfL https://api.github.com/repos/saintmalik/helm-sca/releases/latest | jq -r .tag_name)"
+        fi
+        # Accept 0.0.1 or v0.0.1 — release tags are always v-prefixed.
+        if [[ "$VER" != v* ]]; then
+          VER="v${VER}"
+        fi
+        OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+        ARCH="$(uname -m)"
+        case "$ARCH" in
+          x86_64) ARCH=amd64 ;;
+          aarch64|arm64) ARCH=arm64 ;;
+        esac
+        URL="https://github.com/saintmalik/helm-sca/releases/download/${VER}/helm-sca_${OS}_${ARCH}.tar.gz"
+        echo "Downloading ${URL}"
+        curl -sSfL "$URL" -o /tmp/helm-sca.tgz
+        tar -xzf /tmp/helm-sca.tgz -C /tmp
+        sudo install -m 0755 /tmp/helm-sca /usr/local/bin/helm-sca
+        helm-sca version
+
+    - name: Run helm-sca
+      id: run
+      shell: bash
+      working-directory: ${{ steps.paths.outputs.work_dir }}
+      env:
+        COMMAND: ${{ inputs.command }}
+        MODE: ${{ inputs.mode }}
+        CHART: ${{ inputs.chart }}
+        MANIFESTS: ${{ inputs.manifests }}
+        ARGO_APPS: ${{ inputs.argo-apps }}
+        FLUX: ${{ inputs.flux }}
+        GITOPS: ${{ inputs.gitops }}
+        TERRAFORM: ${{ inputs.terraform }}
+        TERRAFORM_JSON: ${{ inputs.terraform-json }}
+        VALUES: ${{ inputs.values }}
+        SET_VALS: ${{ inputs.set }}
+        RELEASE: ${{ inputs.release }}
+        REPO_ROOT: ${{ inputs.repo-root }}
+        FORMAT: ${{ inputs.format }}
+        OUT_DIR: ${{ steps.paths.outputs.out_dir }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        ONLY_FIXED: ${{ inputs.only-fixed }}
+        WORK_DIR: ${{ steps.paths.outputs.work_dir }}
+      run: |
+        set -euo pipefail
+        ARGS=()
+        case "$MODE" in
+          chart)
+            [[ -n "$CHART" ]] || { echo "::error::mode=chart requires chart input"; exit 1; }
+            ARGS+=(--chart "$CHART")
+            ;;
+          manifests)
+            [[ -n "$MANIFESTS" ]] || { echo "::error::mode=manifests requires manifests input"; exit 1; }
+            ARGS+=(--manifests "$MANIFESTS")
+            ;;
+          argo)
+            ARGS+=(--argo-apps "$ARGO_APPS")
+            ;;
+          flux)
+            [[ -n "$FLUX" ]] || { echo "::error::mode=flux requires flux input"; exit 1; }
+            ARGS+=(--flux "$FLUX")
+            ;;
+          gitops)
+            TARGET="${GITOPS:-$ARGO_APPS}"
+            [[ -n "$TARGET" ]] || { echo "::error::mode=gitops requires gitops (or argo-apps) input"; exit 1; }
+            ARGS+=(--gitops "$TARGET")
+            ;;
+          terraform)
+            if [[ -z "$TERRAFORM" && -z "$TERRAFORM_JSON" ]]; then
+              echo "::error::mode=terraform requires terraform and/or terraform-json input"
+              exit 1
+            fi
+            [[ -n "$TERRAFORM" ]] && ARGS+=(--terraform "$TERRAFORM")
+            [[ -n "$TERRAFORM_JSON" ]] && ARGS+=(--terraform-json "$TERRAFORM_JSON")
+            ;;
+          *)
+            echo "::error::unknown mode: $MODE (want argo|flux|gitops|manifests|chart|terraform)"
+            exit 1
+            ;;
+        esac
+
+        ROOT="${REPO_ROOT:-$WORK_DIR}"
+        ARGS+=(--repo-root "$ROOT" --release "$RELEASE")
+
+        if [[ -n "$VALUES" ]]; then
+          IFS=',' read -ra VAL_FILES <<<"$VALUES"
+          for vf in "${VAL_FILES[@]}"; do
+            vf="$(echo "$vf" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            [[ -z "$vf" ]] && continue
+            ARGS+=(-f "$vf")
+          done
+        fi
+        if [[ -n "$SET_VALS" ]]; then
+          IFS=',' read -ra SETS <<<"$SET_VALS"
+          for s in "${SETS[@]}"; do
+            s="$(echo "$s" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            [[ -z "$s" ]] && continue
+            ARGS+=(--set "$s")
+          done
+        fi
+
+        mkdir -p "$OUT_DIR"
+        case "$COMMAND" in
+          inventory)
+            helm-sca inventory "${ARGS[@]}" --format "$FORMAT" | tee "${OUT_DIR}/inventory.${FORMAT}"
+            ;;
+          scan)
+            FIXED_ARGS=()
+            if [[ "$ONLY_FIXED" == "true" ]]; then
+              FIXED_ARGS+=(--only-fixed)
+            else
+              FIXED_ARGS+=(--only-fixed=false)
+            fi
+            helm-sca scan "${ARGS[@]}" --out-dir "$OUT_DIR" --fail-on "$FAIL_ON" "${FIXED_ARGS[@]}"
+            ;;
+          *)
+            echo "::error::unknown command: $COMMAND (want inventory|scan)"
+            exit 1
+            ;;
+        esac
+        echo "out_dir=$OUT_DIR" >>"$GITHUB_OUTPUT"
+
+    - name: Upload artifacts
+      if: inputs.upload-artifacts == 'true'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.paths.outputs.out_dir }}
+        if-no-files-found: warn

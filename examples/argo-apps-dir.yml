@@ -1,0 +1,22 @@
+# Example: inventory Argo Application YAML in an apps directory.
+
+name: helm-sca (argo apps)
+
+on:
+  pull_request:
+    paths:
+      - "environments/**"
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan Argo apps
+        uses: saintmalik/helm-sca-action@<commit-sha>
+        with:
+          mode: argo
+          argo-apps: ./environments
+          fail-on: high
+          command: scan
