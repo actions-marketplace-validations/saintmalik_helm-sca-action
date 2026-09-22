@@ -8,7 +8,7 @@ branding:
 
 inputs:
   command:
-    description: CLI command to run — inventory or scan.
+    description: CLI command to run — inventory, scan, or recommend.
     required: false
     default: scan
 
@@ -103,16 +103,16 @@ inputs:
 
   version:
     description: >-
-      helm-sca version tag for release download or go-install (e.g. v0.0.1),
+      helm-sca version tag for release download or go-install (e.g. v0.0.2),
       or "latest". Ignored when install-method is build.
     required: false
-    default: v0.0.1
+    default: v0.0.2
 
   install-method:
     description: >-
       How to obtain the CLI: release (GitHub release binary — preferred),
       go-install (go install @version), or build (checkout sibling/source
-      via helm-sca-ref). Use go-install/build until v0.0.1 is published.
+      via helm-sca-ref).
     required: false
     default: release
   helm-sca-ref:
@@ -194,7 +194,7 @@ runs:
         version: ${{ inputs.helm-version }}
 
     - name: Install Syft
-      if: inputs.command == 'scan'
+      if: inputs.command == 'scan' || inputs.command == 'recommend'
       shell: bash
       env:
         SYFT_VERSION: ${{ inputs.syft_version }}
@@ -205,7 +205,7 @@ runs:
           | sh -s -- -b /usr/local/bin "${SYFT_VERSION}"
 
     - name: Install Grype
-      if: inputs.command == 'scan'
+      if: inputs.command == 'scan' || inputs.command == 'recommend'
       shell: bash
       env:
         GRYPE_VERSION: ${{ inputs.grype_version }}
@@ -216,7 +216,7 @@ runs:
           | sh -s -- -b /usr/local/bin "${GRYPE_VERSION}"
 
     - name: Update Grype vulnerability database
-      if: inputs.command == 'scan'
+      if: inputs.command == 'scan' || inputs.command == 'recommend'
       shell: bash
       run: |
         set -euo pipefail
@@ -389,8 +389,17 @@ runs:
             fi
             helm-sca scan "${ARGS[@]}" --out-dir "$OUT_DIR" --fail-on "$FAIL_ON" "${FIXED_ARGS[@]}"
             ;;
+          recommend)
+            FIXED_ARGS=()
+            if [[ "$ONLY_FIXED" == "true" ]]; then
+              FIXED_ARGS+=(--only-fixed)
+            else
+              FIXED_ARGS+=(--only-fixed=false)
+            fi
+            helm-sca recommend "${ARGS[@]}" --out-dir "$OUT_DIR" --output both "${FIXED_ARGS[@]}"
+            ;;
           *)
-            echo "::error::unknown command: $COMMAND (want inventory|scan)"
+            echo "::error::unknown command: $COMMAND (want inventory|scan|recommend)"
             exit 1
             ;;
         esac
