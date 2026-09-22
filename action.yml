@@ -1,7 +1,5 @@
 name: "helm-sca"
-description: >-
-  Install helm-sca and run supply chain checks (Syft → Grype) on what GitOps
-  would deploy: Helm charts, manifests, Argo CD, Flux, or Terraform.
+description: "Syft/Grype supply chain checks on images your GitOps/ops repo would deploy."
 author: "saintmalik"
 
 branding:
